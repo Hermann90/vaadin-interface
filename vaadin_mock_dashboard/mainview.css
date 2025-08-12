@@ -1,0 +1,47 @@
+/* General button styling */
+.my-button {
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: bold;
+    border: 1px solid #3366cc;
+}
+
+/* Green table buttons */
+.table-green {
+    background-color: #d4f7d4;
+    border: 1px dashed #66aa66;
+}
+
+/* Red table buttons */
+.table-red {
+    background-color: #f7d4d4;
+    border: 1px dashed #aa6666;
+}
+
+/* Commit button */
+.commit-button {
+    background-color: red;
+    color: white;
+    font-weight: bold;
+    border-radius: 8px;
+}
+
+/* Panels */
+.left-panel {
+    border: 1px solid #3366cc;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.right-panel {
+    border: 1px solid #3366cc;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+/* Top menu bar */
+.top-menu {
+    border: 1px solid #3366cc;
+    padding: 10px;
+    border-radius: 8px;
+}

@@ -1,0 +1,11 @@
+vaadin-button {
+    margin-right: 10px;
+}
+
+vaadin-combo-box, vaadin-radio-group {
+    margin-bottom: 15px;
+}
+
+vaadin-form-layout {
+    margin-bottom: 20px;
+}
