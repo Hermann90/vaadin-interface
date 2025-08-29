@@ -1,0 +1,86 @@
+
+# LA CONFIGURATION DE SPARK
+spark:
+  parameters:
+    spark.serializer: org.apache.spark.serializer.KryoSerializer
+    spark.driver.cores: '4'
+    spark.driver.memory: 8g
+    spark.executor.instances: '4'
+    spark.executor.cores: '4'
+    spark.executor.memory: 8g
+
+extraArgRegex :
+
+#csv to hadoop ---------------------------------------------------------------
+csv:
+  inputDirPath: /${HDFS_INGEST_HOME}/<NOM_SOURCE>/incoming
+  errorDirPath: /${HDFS_INGEST_HOME}/<NOM_SOURCE>/rejet
+  histoDirPath: /${HDFS_ARCHIVE_HOME}/<NOM_SOURCE>
+  outputDirPath: /${HDFS_ENHANCED_HOME}/app_datalake/${PREFIX_ENV}_enhanced_<NOM_COURT_APPLICATION>.db/<NOM_SOURCE>
+
+  delimiter: ";"
+  inferSchema: true
+  havingHeader: true
+  comment: ""
+  nullValue: null
+  encoding: iso-8859-1
+  
+  # Lorsque renseigne a true, attend un fichier avec l'extention csv en entree.
+  checkExtension: true
+  allowNoInputFile: false
+  purgeOutputDirPathBeforeExecution: false
+  
+  ignoreLeadingWhiteSpace: true
+  ignoreTrailingWhiteSpace: true
+  allowMissingOrExtraColumn: false
+
+  saveFormat: parquet
+  # saveMode : overwrite ou append.
+  # En mode append, va seulement ajouter les lignes a l'existant. Ce mode de chargement peut generer des doublons
+  # lors du rejeu d'un traitement.
+  # En mode overwrite, c'est le mode overwriteSaveMode au niveau de la partition qui va determiner comment
+  # sont ecrasees les donnees. Si delta, concerne seulement les partitions chargees, si all, concerne
+  # toutes les partitions.                 
+  saveMode: overwrite
+  
+  # Optionnel : A activer si besoin d'ajouter des options spark (key : value, exemple quote: "") supplementaires dans le dataframeReader lors de la lecture
+  #readerExtraOptions:
+    #options:
+    
+  # Optionnel : A activer si besoin d'ajouter des options spark (key : value, exemple quote: "") supplementaires dans le dataframeWriter lors de l'ecriture
+  #writerExtraOptions:
+    #options:
+    
+  schema:
+    NUM:  integer
+    RUBPERE:  string
+    LURUBRIQ_RUBFILS:  string
+    
+# Optionnel : A activer si necessaires pour ajouter un ou les deux champs ci-dessous
+#addColumns:
+#  - columnName : input_file_name
+#    columnValue : ${inputFileName}
+#    type: string
+#  - columnName : ingest_timestamp
+#    columnValue : ${ingestTimestamp}
+#   type: timestamp
+
+# Optionnel : Recuperer la periode depuis le nom du fichier.
+# Cela ne sert pas a filtrer sur un format de nom de fichier a charger.
+periodFilenameConf:
+  regexRule: "^\\w+_(\\d{4})(\\d{2})(\\d{2}).*"
+  regexReplacement: "$1-$2-$3"
+  
+partition :
+  mode : period
+  # overwriteSaveMode : delta ou all.
+  overwriteSaveMode: delta
+  periodPartitionRule: none
+  columns:
+    - name: period
+      type: string
+# Exemple sans partition avec chargement en annule et remplace. Utile lorsqu'il n'est pas necessaire de conserver
+# un historique des donnees.
+#partition :
+#  mode : no_partition
+#  overwriteSaveMode: all
