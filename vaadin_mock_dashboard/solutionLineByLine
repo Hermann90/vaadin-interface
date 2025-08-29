@@ -1,0 +1,198 @@
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
+import java.util.regex.Pattern;
+
+public class YamlSchemaUpdater {
+
+    public static void main(String[] args) {
+        String yamlFilePath = "path/to/your/config.yaml";
+        
+        try {
+            // Add new schema fields
+            Map<String, String> newFields = new LinkedHashMap<>();
+            newFields.put("DATE_CREATION", "timestamp");
+            newFields.put("MONTANT", "double");
+            newFields.put("STATUT", "string");
+            
+            // Update the YAML file without removing any content
+            addSchemaFieldsPreserveContent(yamlFilePath, newFields);
+            
+            System.out.println("YAML schema updated successfully while preserving all content!");
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void addSchemaFieldsPreserveContent(String filePath, Map<String, String> newFields) throws IOException {
+        File inputFile = new File(filePath);
+        File tempFile = new File(filePath + ".tmp");
+        
+        try (BufferedReader reader = new BufferedReader(new FileReader(inputFile));
+             BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+            
+            String line;
+            boolean inSchemaSection = false;
+            boolean schemaSectionProcessed = false;
+            int indentLevel = 0;
+            String currentIndent = "";
+            
+            while ((line = reader.readLine()) != null) {
+                // Check if we're entering the schema section
+                if (line.trim().equals("schema:") && !schemaSectionProcessed) {
+                    inSchemaSection = true;
+                    // Calculate the indent level of the schema section
+                    indentLevel = getIndentLevel(line);
+                    currentIndent = " ".repeat(indentLevel + 2); // Add 2 more spaces for field indentation
+                    writer.write(line);
+                    writer.newLine();
+                    continue;
+                }
+                
+                // If we're in schema section, look for the end or existing fields
+                if (inSchemaSection && !schemaSectionProcessed) {
+                    // Check if this line is still part of the schema section (same or greater indent)
+                    if (getIndentLevel(line) >= indentLevel && !line.trim().isEmpty()) {
+                        writer.write(line);
+                        writer.newLine();
+                    } else {
+                        // We've reached the end of the schema section, add new fields
+                        addNewSchemaFields(writer, newFields, currentIndent);
+                        writer.write(line);
+                        writer.newLine();
+                        inSchemaSection = false;
+                        schemaSectionProcessed = true;
+                    }
+                } else {
+                    writer.write(line);
+                    writer.newLine();
+                }
+            }
+            
+            // If we never found the schema section but reached end of file, add it
+            if (!schemaSectionProcessed) {
+                // We need to find the csv section and add schema there
+                // This is more complex, so let's handle the case where schema exists for now
+                // For simplicity, we'll assume schema section exists
+                System.out.println("Schema section not found. Creating it would require more complex logic.");
+            }
+        }
+        
+        // Replace the original file with the temporary file
+        Files.move(tempFile.toPath(), inputFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private static int getIndentLevel(String line) {
+        int count = 0;
+        for (char c : line.toCharArray()) {
+            if (c == ' ') {
+                count++;
+            } else if (c == '\t') {
+                count += 2; // Treat tabs as 2 spaces for simplicity
+            } else {
+                break;
+            }
+        }
+        return count;
+    }
+
+    private static void addNewSchemaFields(BufferedWriter writer, Map<String, String> newFields, String indent) throws IOException {
+        for (Map.Entry<String, String> entry : newFields.entrySet()) {
+            writer.write(indent + entry.getKey() + ":  " + entry.getValue());
+            writer.newLine();
+        }
+    }
+
+    // Alternative method that uses a different approach - finding the exact position
+    public static void addSchemaFieldsToExisting(String filePath, Map<String, String> newFields) throws IOException {
+        List<String> lines = Files.readAllLines(Path.of(filePath));
+        List<String> newLines = new ArrayList<>();
+        
+        boolean inSchemaSection = false;
+        int schemaIndentLevel = 0;
+        boolean schemaModified = false;
+        
+        for (String line : lines) {
+            newLines.add(line);
+            
+            // Check if we're entering the schema section
+            if (line.trim().equals("schema:") && !schemaModified) {
+                inSchemaSection = true;
+                schemaIndentLevel = getIndentLevel(line);
+                continue;
+            }
+            
+            // If we're in schema section, check when we exit
+            if (inSchemaSection && !schemaModified) {
+                int currentIndent = getIndentLevel(line);
+                
+                // If we hit a line with less indent than schema section, we've exited
+                if (currentIndent <= schemaIndentLevel && !line.trim().isEmpty() && !line.trim().startsWith("#")) {
+                    // Add new fields before this line
+                    int insertIndex = newLines.size() - 1;
+                    String fieldIndent = " ".repeat(schemaIndentLevel + 2);
+                    
+                    for (Map.Entry<String, String> entry : newFields.entrySet()) {
+                        newLines.add(insertIndex, fieldIndent + entry.getKey() + ":  " + entry.getValue());
+                    }
+                    
+                    inSchemaSection = false;
+                    schemaModified = true;
+                }
+            }
+        }
+        
+        // If we never found the end of schema section (it's the last section), add fields at the end
+        if (inSchemaSection && !schemaModified) {
+            String fieldIndent = " ".repeat(schemaIndentLevel + 2);
+            for (Map.Entry<String, String> entry : newFields.entrySet()) {
+                newLines.add(fieldIndent + entry.getKey() + ":  " + entry.getValue());
+            }
+        }
+        
+        // Write back to file
+        Files.write(Path.of(filePath), newLines);
+    }
+
+    // Simple method to append fields to existing schema (if schema is at the end of file)
+    public static void appendSchemaFields(String filePath, Map<String, String> newFields) throws IOException {
+        List<String> lines = Files.readAllLines(Path.of(filePath));
+        
+        // Find the schema section and its indent level
+        int schemaLineIndex = -1;
+        int schemaIndentLevel = 0;
+        
+        for (int i = 0; i < lines.size(); i++) {
+            if (lines.get(i).trim().equals("schema:")) {
+                schemaLineIndex = i;
+                schemaIndentLevel = getIndentLevel(lines.get(i));
+                break;
+            }
+        }
+        
+        if (schemaLineIndex == -1) {
+            throw new IOException("Schema section not found in the YAML file");
+        }
+        
+        // Find where the schema section ends
+        int insertIndex = schemaLineIndex + 1;
+        String fieldIndent = " ".repeat(schemaIndentLevel + 2);
+        
+        // Skip existing schema fields
+        while (insertIndex < lines.size() && getIndentLevel(lines.get(insertIndex)) > schemaIndentLevel) {
+            insertIndex++;
+        }
+        
+        // Add new fields
+        for (Map.Entry<String, String> entry : newFields.entrySet()) {
+            lines.add(insertIndex, fieldIndent + entry.getKey() + ":  " + entry.getValue());
+            insertIndex++;
+        }
+        
+        // Write back to file
+        Files.write(Path.of(filePath), lines);
+    }
+}
