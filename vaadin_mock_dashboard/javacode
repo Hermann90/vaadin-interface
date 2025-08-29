@@ -1,0 +1,48 @@
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
+
+import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class UpdateYamlSchema {
+
+    public static void main(String[] args) throws Exception {
+        String filePath = "config.yaml"; // path to your YAML file
+
+        // Load YAML
+        InputStream input = new FileInputStream(filePath);
+        Yaml yaml = new Yaml(new SafeConstructor());
+        Map<String, Object> data = yaml.load(input);
+
+        // Navigate to csv -> schema
+        Map<String, Object> csvSection = (Map<String, Object>) data.get("csv");
+        Map<String, Object> schema = (Map<String, Object>) csvSection.get("schema");
+
+        if (schema == null) {
+            schema = new LinkedHashMap<>();
+            csvSection.put("schema", schema);
+        }
+
+        // Add new fields
+        schema.put("NEW_COLUMN1", "string");
+        schema.put("NEW_COLUMN2", "integer");
+        schema.put("NEW_COLUMN3", "timestamp");
+
+        // Save YAML with nice formatting
+        DumperOptions options = new DumperOptions();
+        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        options.setPrettyFlow(true);
+        options.setIndent(2);
+        yaml = new Yaml(options);
+
+        try (FileWriter writer = new FileWriter(filePath)) {
+            yaml.dump(data, writer);
+        }
+
+        System.out.println("YAML updated successfully!");
+    }
+}
