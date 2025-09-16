@@ -152,3 +152,28 @@ public class AddColumn {
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
 }
+
+
+public class Main {
+    public static void main(String[] args) {
+        try {
+            SparkConfig config = YamlConfigReader.readConfig("path/to/your/config.yml");
+            
+            // Access configuration values
+            System.out.println("Spark Serializer: " + config.getParameters().getSparkSerializer());
+            System.out.println("Input Directory: " + config.getCsv().getInputDirPath());
+            System.out.println("Delimiter: " + config.getCsv().getDelimiter());
+            
+            // Access schema information
+            Map<String, String> schema = config.getCsv().getSchema();
+            if (schema != null) {
+                for (Map.Entry<String, String> entry : schema.entrySet()) {
+                    System.out.println("Column: " + entry.getKey() + ", Type: " + entry.getValue());
+                }
+            }
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
