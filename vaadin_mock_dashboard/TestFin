@@ -1,0 +1,161 @@
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
+
+public class YamlSchemaReplacer {
+
+    public static void main(String[] args) {
+        String yamlFilePath = "path/to/your/config.yaml";
+        
+        try {
+            // Nouveau schéma complet
+            Map<String, String> newSchema = new LinkedHashMap<>();
+            newSchema.put("ID", "integer");
+            newSchema.put("NOM", "string");
+            newSchema.put("PRENOM", "string");
+            newSchema.put("AGE", "integer");
+            newSchema.put("EMAIL", "string");
+            
+            // Remplacer le schéma existant
+            replaceSchemaPreserveContent(yamlFilePath, newSchema);
+            
+            System.out.println("Schema remplacé avec succès !");
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void replaceSchemaPreserveContent(String filePath, Map<String, String> newSchema) throws IOException {
+        File inputFile = new File(filePath);
+        File tempFile = new File(filePath + ".tmp");
+        
+        try (BufferedReader reader = new BufferedReader(new FileReader(inputFile));
+             BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+            
+            String line;
+            boolean inSchemaSection = false;
+            boolean schemaSectionProcessed = false;
+            int indentLevel = 0;
+            String currentIndent = "";
+            
+            while ((line = reader.readLine()) != null) {
+                // Détecter le début de la section schema
+                if (line.trim().equals("schema:") && !schemaSectionProcessed) {
+                    inSchemaSection = true;
+                    schemaSectionProcessed = true;
+                    // Calculer le niveau d'indentation
+                    indentLevel = getIndentLevel(line);
+                    currentIndent = " ".repeat(indentLevel + 2);
+                    
+                    // Écrire la ligne "schema:" et le NOUVEAU schéma
+                    writer.write(line);
+                    writer.newLine();
+                    writeNewSchema(writer, newSchema, currentIndent);
+                    continue;
+                }
+                
+                // Si on est dans la section schema, ignorer les anciennes lignes
+                if (inSchemaSection) {
+                    // Vérifier si on sort de la section schema
+                    if (getIndentLevel(line) <= indentLevel && !line.trim().isEmpty()) {
+                        inSchemaSection = false;
+                        writer.write(line);
+                        writer.newLine();
+                    }
+                    // Ignorer les anciennes lignes du schéma
+                } else {
+                    writer.write(line);
+                    writer.newLine();
+                }
+            }
+            
+            // Si le schéma n'existait pas, l'ajouter à la fin
+            if (!schemaSectionProcessed) {
+                addMissingSchemaSection(writer, newSchema);
+            }
+        }
+        
+        // Remplacer le fichier original
+        Files.move(tempFile.toPath(), inputFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private static void writeNewSchema(BufferedWriter writer, Map<String, String> newSchema, String indent) throws IOException {
+        for (Map.Entry<String, String> entry : newSchema.entrySet()) {
+            writer.write(indent + entry.getKey() + ":  " + entry.getValue());
+            writer.newLine();
+        }
+    }
+
+    private static void addMissingSchemaSection(BufferedWriter writer, Map<String, String> newSchema) throws IOException {
+        writer.write("  schema:");
+        writer.newLine();
+        for (Map.Entry<String, String> entry : newSchema.entrySet()) {
+            writer.write("    " + entry.getKey() + ":  " + entry.getValue());
+            writer.newLine();
+        }
+    }
+
+    private static int getIndentLevel(String line) {
+        int count = 0;
+        for (char c : line.toCharArray()) {
+            if (c == ' ') {
+                count++;
+            } else if (c == '\t') {
+                count += 2;
+            } else {
+                break;
+            }
+        }
+        return count;
+    }
+
+    // Version avec List<String> au lieu de BufferedReader/BufferedWriter
+    public static void replaceSchemaWithList(String filePath, Map<String, String> newSchema) throws IOException {
+        List<String> lines = Files.readAllLines(Path.of(filePath));
+        List<String> newLines = new ArrayList<>();
+        
+        boolean inSchemaSection = false;
+        boolean schemaReplaced = false;
+        int schemaIndentLevel = 0;
+        
+        for (String line : lines) {
+            // Détecter le début du schema
+            if (line.trim().equals("schema:") && !schemaReplaced) {
+                inSchemaSection = true;
+                schemaReplaced = true;
+                schemaIndentLevel = getIndentLevel(line);
+                
+                // Ajouter la ligne schema et le nouveau contenu
+                newLines.add(line);
+                String fieldIndent = " ".repeat(schemaIndentLevel + 2);
+                for (Map.Entry<String, String> entry : newSchema.entrySet()) {
+                    newLines.add(fieldIndent + entry.getKey() + ":  " + entry.getValue());
+                }
+                continue;
+            }
+            
+            // Ignorer les anciennes lignes du schema
+            if (inSchemaSection) {
+                if (getIndentLevel(line) <= schemaIndentLevel && !line.trim().isEmpty()) {
+                    inSchemaSection = false;
+                    newLines.add(line);
+                }
+            } else {
+                newLines.add(line);
+            }
+        }
+        
+        // Si le schema n'existait pas
+        if (!schemaReplaced) {
+            newLines.add("  schema:");
+            for (Map.Entry<String, String> entry : newSchema.entrySet()) {
+                newLines.add("    " + entry.getKey() + ":  " + entry.getValue());
+            }
+        }
+        
+        Files.write(Path.of(filePath), newLines);
+    }
+}
