@@ -1,0 +1,208 @@
+// ✅ ACTIVER LA SÉLECTION VISUELLE
+public void enableSelectionVisual() {
+    // S'assurer que le mode de sélection est activé
+    grid.setSelectionMode(Grid.SelectionMode.SINGLE);
+    
+    // Styles pour rendre la sélection visible
+    getElement().executeJs(
+        "const style = document.createElement('style');" +
+        "style.textContent = `" +
+        "  /* Couleur par défaut de la sélection */" +
+        "  [part~='selected'] {" +
+        "    background-color: #2196F3 !important;" +
+        "    color: white !important;" +
+        "  }" +
+        "  [part~='selected'] [part~='cell'] {" +
+        "    background-color: #2196F3 !important;" +
+        "    color: white !important;" +
+        "  }" +
+        "  /* Effet au survol */" +
+        "  [part~='row']:hover {" +
+        "    background-color: #f0f0f0 !important;" +
+        "  }" +
+        "  /* Curseur pointer */" +
+        "  [part~='row'] {" +
+        "    cursor: pointer !important;" +
+        "  }" +
+        "`;" +
+        "document.head.appendChild(style);"
+    );
+}
+
+// ✅ FORCER LA VISUALISATION DE LA SÉLECTION
+public void refreshSelectionVisual() {
+    if (currentSelection != null) {
+        // Forcer la mise à jour visuelle de la sélection
+        grid.select(currentSelection);
+        
+        getElement().executeJs(
+            "setTimeout(() => {" +
+            "  const grid = $0;" +
+            "  const selectedRows = grid.querySelectorAll('[part~=\"selected\"]');" +
+            "  selectedRows.forEach(row => {" +
+            "    row.style.backgroundColor = '#2196F3';" +
+            "    row.style.color = 'white';" +
+            "    const cells = row.querySelectorAll('[part~=\"cell\"]');" +
+            "    cells.forEach(cell => {" +
+            "      cell.style.backgroundColor = '#2196F3';" +
+            "      cell.style.color = 'white';" +
+            "    });" +
+            "  });" +
+            "}, 10);",
+            grid.getElement()
+        );
+    }
+}
+
+// ✅ MODIFIER setSelectedItem POUR LA VISUALISATION
+public void setSelectedItem(T item) {
+    T oldSelection = currentSelection;
+    currentSelection = item;
+    
+    // Sélectionner dans la grid
+    grid.select(item);
+    
+    // Forcer la visualisation
+    refreshSelectionVisual();
+    
+    if (oldSelection == null || !item.equals(oldSelection)) {
+        fireSelectionChanged(oldSelection, currentSelection);
+    }
+}
+
+// ✅ SURCHARGE pour couleur personnalisée
+public void setSelectedItem(T item, String selectionColor) {
+    T oldSelection = currentSelection;
+    currentSelection = item;
+    
+    grid.select(item);
+    
+    // Appliquer la couleur personnalisée
+    getElement().executeJs(
+        "setTimeout(() => {" +
+        "  const grid = $0;" +
+        "  const selectedRows = grid.querySelectorAll('[part~=\"selected\"]');" +
+        "  selectedRows.forEach(row => {" +
+        "    row.style.backgroundColor = $1;" +
+        "    row.style.color = 'white';" +
+        "    const cells = row.querySelectorAll('[part~=\"cell\"]');" +
+        "    cells.forEach(cell => {" +
+        "      cell.style.backgroundColor = $1;" +
+        "      cell.style.color = 'white';" +
+        "    });" +
+        "  });" +
+        "}, 10);",
+        grid.getElement(), selectionColor
+    );
+    
+    if (oldSelection == null || !item.equals(oldSelection)) {
+        fireSelectionChanged(oldSelection, currentSelection);
+    }
+}
+
+//€€
+
+private void setupSelectionHandling() {
+    grid.addItemClickListener(event -> {
+        T clickedItem = event.getItem();
+        
+        if (clickedItem != null && clickedItem.equals(currentSelection)) {
+            if (allowDeselection) {
+                clearSelection();
+            } else {
+                refreshSelection();
+            }
+        } else if (clickedItem != null) {
+            // ✅ UTILISER LA NOUVELLE MÉTHODE AVEC VISUALISATION
+            setSelectedItem(clickedItem);
+        }
+        
+        // ✅ FORCER LE RAFRAÎCHISSEMENT VISUEL
+        refreshSelectionVisual();
+    });
+    
+    // ✅ ÉCOUTEUR POUR LES CHANGEMENTS DE SÉLECTION
+    grid.asSingleSelect().addValueChangeListener(event -> {
+        if (event.getValue() == null && !allowDeselection && currentSelection != null) {
+            grid.asSingleSelect().setValue(currentSelection);
+            refreshSelectionVisual(); // ✅ RAFRAÎCHIR
+        } else if (event.getValue() != null) {
+            currentSelection = event.getValue();
+            refreshSelectionVisual(); // ✅ RAFRAÎCHIR
+        }
+    });
+}
+
+//€&
+
+private void setupSelectionHandling() {
+    grid.addItemClickListener(event -> {
+        T clickedItem = event.getItem();
+        
+        if (clickedItem != null && clickedItem.equals(currentSelection)) {
+            if (allowDeselection) {
+                clearSelection();
+            } else {
+                refreshSelection();
+            }
+        } else if (clickedItem != null) {
+            // ✅ UTILISER LA NOUVELLE MÉTHODE AVEC VISUALISATION
+            setSelectedItem(clickedItem);
+        }
+        
+        // ✅ FORCER LE RAFRAÎCHISSEMENT VISUEL
+        refreshSelectionVisual();
+    });
+    
+    // ✅ ÉCOUTEUR POUR LES CHANGEMENTS DE SÉLECTION
+    grid.asSingleSelect().addValueChangeListener(event -> {
+        if (event.getValue() == null && !allowDeselection && currentSelection != null) {
+            grid.asSingleSelect().setValue(currentSelection);
+            refreshSelectionVisual(); // ✅ RAFRAÎCHIR
+        } else if (event.getValue() != null) {
+            currentSelection = event.getValue();
+            refreshSelectionVisual(); // ✅ RAFRAÎCHIR
+        }
+    });
+}
+
+//€&
+
+// ✅ DANS PersonGrid - INITIALISER LA VISUALISATION
+public PersonGrid() {
+    super(Person.class);
+    configureGrid();
+    setupRowColors();
+    loadSampleData();
+    
+    // ✅ ACTIVER LA VISUALISATION DE SÉLECTION
+    enableSelectionVisual();
+}
+
+// ✅ MÉTHODE POUR TESTER LA SÉLECTION
+public void testSelection() {
+    if (!getItems().isEmpty()) {
+        setSelectedItem(getItems().get(0)); // Sélectionner le premier élément
+    }
+}
+
+///ha
+private void setupListeners() {
+    personGrid.addSelectionListener((oldValue, newValue) -> {
+        if (newValue != null) {
+            updateDetailsPanel(newValue);
+            System.out.println("Ligne sélectionnée: " + newValue.getName());
+        } else {
+            detailsPanel.removeAll();
+            detailsPanel.setText("Aucune personne sélectionnée");
+        }
+    });
+
+    // ✅ TESTER AVEC UN BOUTON
+    Button testButton = new Button("Tester sélection", event -> {
+        personGrid.testSelection();
+    });
+    
+    add(testButton);
+}
+
